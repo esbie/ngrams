@@ -1,0 +1,13 @@
+ Unsmoothed Unigrams
+ create a word-indexed array (hashtable) from word to word count. e.g., { 'write' => 1, 'a' => 6, 'program' => 2 }
+ An absence of the index e.g. counts['foobar'] => null indicates that that word did not occur in the corpus => count of 0.
+
+ P(word1) = count[word1] / totalCount
+
+ Unsmoothed Bigrams
+ create a double hashtable: hashtable (word => hashtable(word=>count)). e.g., { 'write' => {'a' => 3, 'some' => 2}, 'a' => {'program' => 1, 'report' => 2} }
+ Here the outer word index is the first word and the inner word index is the second word. So counts['write']['some'] == 2 means the bigram 'write some' occurred twice. An absence of the index e.g. (1) counts['write']['foobar'] => null or (2) counts['foobar'] => null indicates that (1) that bigram did not occur or (2) that word did not occur at the start of any bigram, meaning that it is a count of 0.
+
+ P(word1 word2) = count[word1][word2] / count[word1]
+ Note that unigram counts needed for bigram Probabilities.
+
