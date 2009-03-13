@@ -8,6 +8,7 @@ public class Unigram
 {
     public Set<String> samples;
     public HashMap<String, Integer> counts;
+    public int totalCount;
     
     public static void main(String[] args)
     {
@@ -17,12 +18,14 @@ public class Unigram
         Unigram u = new Unigram(set);
         u.train();
         u.showCounts();
+        System.out.println("P(year) = " + u.unsmoothedProbability("year"));
     }
     
     public Unigram(Set<String> samples)
     {
         this.samples = samples;
         this.counts = new HashMap<String, Integer>();
+        this.totalCount = 0;
     }
     
     public void train()
@@ -40,7 +43,18 @@ public class Unigram
                     count = counts.get(match);
                 }
                 counts.put(match, count+1);
+                
+                totalCount++;
             }
+        }
+    }
+    
+    public double unsmoothedProbability(String word)
+    {
+        if (counts.containsKey(word)) {
+            return (double)counts.get(word) / (double) totalCount;
+        } else {
+            return 0.0;
         }
     }
     
