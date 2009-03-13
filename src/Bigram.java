@@ -31,7 +31,7 @@ public class Bigram
     public void train()
     {
         // Regexp to match words (starting with optional apos) or any punctuation (with probably extra escaping)
-        String regexp = "('?\\w+|[\\`\\~\\!\\@\\#\\$\\%\\^\\&\\*\\(\\)\\-\\_\\=\\+\\[\\{\\]\\}\\\\\\|\\;\\:\\'\\\"\\,\\<\\.\\>\\/\\?])";
+        String regexp = "('?\\w+|\\p{Punct})";
         Pattern pattern = Pattern.compile(regexp);
         for (String sample : samples) {
             Matcher matcher = pattern.matcher(sample);

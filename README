@@ -12,6 +12,6 @@
  Note that unigram counts needed for bigram Probabilities.
 
 Regular Expression for matching "words" including punctuation and stuff like 's:
-('?\w+|[\`\~\!\@\#\$\%\^\&\*\(\)\-\_\=\+\[\{\]\}\\\|\;\:\'\"\,\<\.\>\/\?])
+('?\w+|\p{Punct})
 Java-ized for use in a String literal:
-('?\\w+|[\\`\\~\\!\\@\\#\\$\\%\\^\\&\\*\\(\\)\\-\\_\\=\\+\\[\\{\\]\\}\\\\\\|\\;\\:\\'\\\"\\,\\<\\.\\>\\/\\?])
+('?\\w+|\\p{Punct})
