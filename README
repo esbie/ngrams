@@ -11,3 +11,7 @@
  P(word1 word2) = count[word1][word2] / count[word1]
  Note that unigram counts needed for bigram Probabilities.
 
+Regular Expression for matching "words" including punctuation and stuff like 's:
+('?\w+|[\`\~\!\@\#\$\%\^\&\*\(\)\-\_\=\+\[\{\]\}\\\|\;\:\'\"\,\<\.\>\/\?])
+Java-ized for use in a String literal:
+('?\\w+|[\\`\\~\\!\\@\\#\\$\\%\\^\\&\\*\\(\\)\\-\\_\\=\\+\\[\\{\\]\\}\\\\\\|\\;\\:\\'\\\"\\,\\<\\.\\>\\/\\?])
