@@ -12,10 +12,9 @@ public class Bigram
     
     public static void main(String[] args)
     {
-        HashSet<String> set = new HashSet<String>();
-        set.add("\n           John Blair &amp; Co. is close to an agreement to sell its TV station advertising representation operation and program production unit to an investor group led by James H. Rosenfield, a former CBS Inc. executive, industry sources said. \n\n           Industry sources put the value of the proposed acquisition at more than $100 million. \n        John Blair was acquired last year by Reliance Capital Group Inc., which has been divesting itself of John Blair's major assets. \n        John Blair represents about 130 local television stations in the placement of national and other advertising. \n\n           Mr. Rosenfield stepped down as a senior executive vice president of CBS Broadcasting in December 1985 under a CBS early retirement program. \n        Neither Mr. Rosenfield nor officials of John Blair could be reached for comment. \n\n");
-        set.add("\n           South Korea posted a surplus on its current account of $419 million in February, in contrast to a deficit of $112 million a year earlier, the government said. \n        The current account comprises trade in goods and services and some unilateral transfers. \n\n");
-        Bigram b = new Bigram(set);
+		NgramParser p = new NgramParser("data/fbistest.xml");    	
+        HashSet<String> set = p.parse();
+    	Bigram b = new Bigram(set);
         b.train();
         b.showCounts();
         System.out.println("P(a year) = " + b.unsmoothedProbability("a", "year"));
