@@ -1,6 +1,7 @@
 import java.util.regex.Pattern;
 import java.util.regex.Matcher;
 import java.util.HashMap;
+import java.util.Iterator;
 import java.util.Set;
 import java.util.HashSet;
 
@@ -9,6 +10,7 @@ public class Unigram
     public Set<String> samples;
     public HashMap<String, Integer> counts;
     public int totalCount;
+    public final String START = ":S";
     
     public static void main(String[] args)
     {
@@ -16,8 +18,9 @@ public class Unigram
         HashSet<String> set = p.parse();
         Unigram u = new Unigram(set);
         u.train();
-        u.showCounts();
+        //u.showCounts();
         System.out.println("P(year) = " + u.unsmoothedProbability("year"));
+        System.out.println(u.getSentence());
     }
     
     public Unigram(Set<String> samples)
@@ -63,4 +66,21 @@ public class Unigram
             System.out.println(key + ": " + counts.get(key));
         }
     }
+
+    public String getSentence() {
+        String sentence = "";
+        String currentWord = START;
+        Set<String> keySet = counts.keySet();
+        while (!currentWord.equals(".") && sentence.length() <= 400) {
+            double rand = Math.random() * totalCount;
+            Iterator<String> i = keySet.iterator();
+            while (i.hasNext() && rand >= 0) {
+                currentWord = i.next();
+                rand -= (double) counts.get(currentWord);
+            }
+            sentence += currentWord + " ";
+        }
+        return sentence;
+    }
+
 }

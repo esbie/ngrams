@@ -1,6 +1,7 @@
 import java.util.regex.Pattern;
 import java.util.regex.Matcher;
 import java.util.HashMap;
+import java.util.Iterator;
 import java.util.Set;
 import java.util.HashSet;
 
@@ -9,6 +10,7 @@ public class Bigram
     public Set<String> samples;
     public HashMap<String, HashMap<String, Integer>> counts;
     public HashMap<String, Integer> unigramCounts;
+    public final String START = ":S";
     
     public static void main(String[] args)
     {
@@ -16,8 +18,9 @@ public class Bigram
         HashSet<String> set = p.parse();
     	Bigram b = new Bigram(set);
         b.train();
-        b.showCounts();
+        //b.showCounts();
         System.out.println("P(a year) = " + b.unsmoothedProbability("a", "year"));
+        System.out.println(b.getSentence());
     }
     
     public Bigram(Set<String> samples)
@@ -34,7 +37,7 @@ public class Bigram
         Pattern pattern = Pattern.compile(regexp);
         for (String sample : samples) {
             Matcher matcher = pattern.matcher(sample);
-            String previousWord = ":S"; // originally set to beginning-of-sentence marker
+            String previousWord = START; // originally set to beginning-of-sentence marker
             while (matcher.find()) {
                 // Set unigram counts (for word1)
                 int unigramCount = 0;
@@ -88,5 +91,23 @@ public class Bigram
                 System.out.println(word1 + " " + word2 + ": " + counts.get(word1).get(word2));
             }
         }
+    }
+
+    public String getSentence() {
+        String sentence = "";
+        String currentWord = START;
+        String nextWord = START;
+        while (!currentWord.equals(".") && sentence.length() <= 400) {
+            Set<String> keySet = counts.get(currentWord).keySet();
+            double rand = Math.random() * unigramCounts.get(currentWord);
+            Iterator<String> i = keySet.iterator();
+            while (i.hasNext() && rand >= 0) {
+                nextWord = i.next();
+                rand -= (double) counts.get(currentWord).get(nextWord);
+            }
+            currentWord = nextWord;
+            sentence += nextWord + " ";
+        }
+        return sentence;
     }
 }
