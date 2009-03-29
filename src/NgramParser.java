@@ -6,6 +6,7 @@ public class NgramParser {
 		
 		public Element rootElement;
 		public HashSet<String> samples = new HashSet<String>();
+		public boolean useUpperCase;
 		
 		public static void main(String[] args){
 			NgramParser p = new NgramParser("data/fbistest.xml");
@@ -16,17 +17,22 @@ public class NgramParser {
 		}
 
 		public NgramParser(String filename){
-			//initializing the xml parser
-			try{
-				DocumentBuilderFactory dbf = DocumentBuilderFactory.newInstance();
-				DocumentBuilder db = dbf.newDocumentBuilder();
-				Document doc = db.parse(filename);
-				rootElement = doc.getDocumentElement();
-			}
-			catch(Exception e){
-				e.printStackTrace();
-			}
+			this(filename, false);
 		}
+		
+        public NgramParser(String filename, boolean useUpperCase){
+            //initializing the xml parser
+            try{
+                DocumentBuilderFactory dbf = DocumentBuilderFactory.newInstance();
+                DocumentBuilder db = dbf.newDocumentBuilder();
+                Document doc = db.parse(filename);
+                rootElement = doc.getDocumentElement();
+            }
+            catch(Exception e){
+                e.printStackTrace();
+            }
+            this.useUpperCase = useUpperCase;
+        }
 		
 		public HashSet<String> parse(){
 			NodeList docnodes = rootElement.getElementsByTagName("DOC");
@@ -42,7 +48,10 @@ public class NgramParser {
 		private String[] parseTextNode(Node node){
 			String text = node.getNodeValue();
 			text = text.replaceAll("\\.\\s", "\\.\\. ");
-			text = text.trim().toLowerCase();
+			text = text.trim();
+			if(!useUpperCase){
+			    text = text.toLowerCase();
+			}
 			String[] textArray = text.split("\\.\\s");
 			return textArray;
 		}

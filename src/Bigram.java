@@ -14,8 +14,8 @@ public class Bigram
     
     public static void main(String[] args)
     {
-		NgramParser p = new NgramParser("data/fbistest.xml");    	
-        HashSet<String> set = p.parse();
+		NgramParser p = new NgramParser("data/fbistest.xml", true);
+		HashSet<String> set = p.parse();
     	Bigram b = new Bigram(set);
         b.train();
         //b.showCounts();
