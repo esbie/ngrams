@@ -4,6 +4,7 @@ import java.util.HashMap;
 import java.util.Iterator;
 import java.util.Set;
 import java.util.HashSet;
+import java.util.Stack;
 
 public class Bigram
 {
@@ -14,13 +15,18 @@ public class Bigram
     
     public static void main(String[] args)
     {
-		NgramParser p = new NgramParser("data/fbistest.xml", true);
-		HashSet<String> set = p.parse();
-    	Bigram b = new Bigram(set);
+		NgramParser p = new NgramParser("data/fbistrain.xml", true);
+        HashSet<String> set = p.parse();
+        Bigram b = new Bigram(set);
         b.train();
-        //b.showCounts();
-        System.out.println("P(a year) = " + b.unsmoothedProbability("a", "year"));
+        // b.showCounts();
+        System.out.println("P(a year) = "
+                + b.unsmoothedProbability("a", "year"));
         System.out.println(b.getSentence());
+
+        NgramParser test = new NgramParser("data/fbistest.xml");
+        HashSet<String> testset = test.parse();
+        System.out.println(b.perplexity(testset));
     }
     
     public Bigram(Set<String> samples)
@@ -97,10 +103,15 @@ public class Bigram
         String sentence = "";
         String currentWord = START;
         String nextWord = START;
+        //creates a sentence until a period is found
+        //(400 is jic it doesn't find a period)
         while (!currentWord.equals(".") && sentence.length() <= 400) {
             Set<String> keySet = counts.get(currentWord).keySet();
+            // rand is like a random dart thrown onto a dart board
+            // multiplied by totalCount for precision (since P(word) is small)
             double rand = Math.random() * unigramCounts.get(currentWord);
             Iterator<String> i = keySet.iterator();
+            //looking at all the words to see where the dart lands
             while (i.hasNext() && rand >= 0) {
                 nextWord = i.next();
                 rand -= (double) counts.get(currentWord).get(nextWord);
@@ -109,5 +120,37 @@ public class Bigram
             sentence += nextWord + " ";
         }
         return sentence;
+    }
+
+    public double perplexity(Set<String> testSamples) {
+        float product = 1;
+        int wordCount = 0;
+        Stack<Double> products = new Stack<Double>();
+        String regexp = "('?\\w+|\\p{Punct})";
+        Pattern pattern = Pattern.compile(regexp);
+
+        // counting number of words in test set
+        for (String sample : testSamples) {
+            Matcher matcher = pattern.matcher(sample);
+            String previousWord = START;
+            while (matcher.find()) {
+                String match = matcher.group();
+                if (unsmoothedProbability(previousWord, match) > 0) {
+                    products.push(unsmoothedProbability(previousWord, match));
+                    wordCount++;
+                }
+                // Update previousWord
+                previousWord = match;
+            }
+        }
+
+        // computing the necessary exponent
+        double power = 1.0 / wordCount;
+
+        // computing perplexity based on probabilities
+        while (!products.empty()) {
+            product *= Math.pow(products.pop(), power);
+        }
+        return 1 / product;
     }
 }
