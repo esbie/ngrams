@@ -9,31 +9,51 @@ import java.util.Stack;
 public class Bigram
 {
     public Set<String> samples;
-    public HashMap<String, HashMap<String, Integer>> counts;
-    public HashMap<String, Integer> unigramCounts;
+    public HashMap<String, HashMap<String, Double>> counts;
+    public HashMap<String, Double> unigramCounts;
     public final String START = ":S";
+    
+    // For add-one smoothing
+    public Set<String> wordSet; // Used to find the vocabulary
+    public double vocabSize; // Size of the vocabulary
+    
+    // For Good Turing Smoothing
+    public double numTrainingBigrams; // The size of the training set (# non-distinct words)
+    public HashMap<Double, Double> numberOfBigramsWithCount; // The number of bigrams that occur x times
+    public boolean goodTuringCountsAvailable = false; // True when good turing counts are available
     
     public static void main(String[] args)
     {
-		NgramParser p = new NgramParser("data/fbistrain.xml", true);
+        if (args.length != 2) {
+            System.out.println("You must supply 2 arguments:\n(1) Training file\n" +
+                               "(2) Test file");
+            System.exit(1);
+        }
+        
+		NgramParser p = new NgramParser(args[0], true);
         HashSet<String> set = p.parse();
+        
         Bigram b = new Bigram(set);
         b.train();
-        // b.showCounts();
-        System.out.println("P(a year) = "
-                + b.unsmoothedProbability("a", "year"));
-        System.out.println(b.getSentence());
+        
+        System.out.println("Done training.");
 
-        NgramParser test = new NgramParser("data/fbistest.xml");
+        //System.out.println(b.getSentence());
+        
+        NgramParser test = new NgramParser(args[1], true);
         HashSet<String> testset = test.parse();
-        System.out.println(b.perplexity(testset));
+        System.out.println("Perplexity of the test set: " + b.perplexity(testset));
     }
     
     public Bigram(Set<String> samples)
     {
         this.samples = samples;
-        this.counts = new HashMap<String, HashMap<String, Integer>>();
-        this.unigramCounts = new HashMap<String, Integer>();
+        this.counts = new HashMap<String, HashMap<String, Double>>();
+        this.unigramCounts = new HashMap<String, Double>();
+        
+        this.wordSet = new HashSet<String>();
+        
+        this.numberOfBigramsWithCount = new HashMap<Double, Double>();
     }
     
     public void train()
@@ -46,48 +66,126 @@ public class Bigram
             String previousWord = START; // originally set to beginning-of-sentence marker
             while (matcher.find()) {
                 // Set unigram counts (for word1)
-                int unigramCount = 0;
+                double unigramCount = 0.0;
                 if (unigramCounts.containsKey(previousWord)) {
                     unigramCount = unigramCounts.get(previousWord);
                 }
-                unigramCounts.put(previousWord, unigramCount+1);
+                unigramCounts.put(previousWord, unigramCount+1.0);
                 
                 // Get the new match (word2)
                 String match = matcher.group();
+                wordSet.add(match);
                 
                 // Get access to (or create) the count map for word1.
-                HashMap<String, Integer> innerCounts;
+                HashMap<String, Double> innerCounts;
                 if (counts.containsKey(previousWord)) {
                     innerCounts = counts.get(previousWord);
                 } else {
-                    innerCounts = new HashMap<String, Integer>();
+                    innerCounts = new HashMap<String, Double>();
                     counts.put(previousWord, innerCounts);
                 }
                 
+                // Add to the size of the training set for gt-smoothing
+                numTrainingBigrams += 1;
+                
                 // Set bigram counts
-                int count = 0;
+                double count = 0.0;
                 if (innerCounts.containsKey(match)) {
                     count = innerCounts.get(match);
+                    
+                    // Decrement the number of bigrams with old count for gt-smoothing
+                    numberOfBigramsWithCount.put(count,
+                        numberOfBigramsWithCount.get(count) - 1.0);
                 }
-                innerCounts.put(match, count+1);
+                innerCounts.put(match, count+1.0);
+                
+                // Increment the number of bigrams with the new count for gt-smoothing
+                if (!numberOfBigramsWithCount.containsKey(count+1.0)) {
+                    numberOfBigramsWithCount.put(count+1.0, 1.0);
+                } else {
+                    numberOfBigramsWithCount.put(count+1.0,
+                        numberOfBigramsWithCount.get(count+1.0) + 1.0);
+                }
                 
                 // Update previousWord
                 previousWord = match;
             }
         }
+        
+        vocabSize = wordSet.size();
+    }
+    
+    public double count(String word1, String word2)
+    {
+        if (counts.containsKey(word1) && counts.get(word1).containsKey(word2)) {
+            return counts.get(word1).get(word2);
+        }
+        return 0.0;
+    }
+    
+    public double unigramCount(String word)
+    {
+        if (unigramCounts.containsKey(word)) {
+            return unigramCounts.get(word);
+        }
+        return 0.0;
     }
     
     public double unsmoothedProbability(String word1, String word2)
     {
         if (counts.containsKey(word1)) {
             if (counts.get(word1).containsKey(word2)) {
-                return (double) counts.get(word1).get(word2) / unigramCounts.get(word1);
+                return counts.get(word1).get(word2) / unigramCounts.get(word1);
             } else {
                 return 0.0;
             }
         } else {
             return 0.0;
         }
+    }
+    
+    public double addOneSmoothedProbability(String word1, String word2)
+    {
+        // (count(word1 word2) + 1) / (count(word1) + V)
+        return (count(word1, word2) + 1.0) / (unigramCount(word1) + vocabSize);
+    }
+    
+    public double goodTuringSmoothedProbability(String word1, String word2)
+    {
+        if (!goodTuringCountsAvailable) {
+            System.out.println("Making good turing counts...");
+            makeGoodTuringCounts();
+            System.out.println("Done making good turing counts.");
+        }
+        
+        // If this bigram has occurred, return good turing probability
+        double gtcount = count(word1, word2);
+        if (gtcount > 0.0) {
+            return gtcount / unigramCount(word1);
+        }
+        // Otherwise, return N1/N as per book (page 101?)
+        return numberOfBigramsWithCount.get(1.0) / numTrainingBigrams;
+    }
+    
+    public void makeGoodTuringCounts()
+    {
+        // Generate good turing counts
+        for (String word1 : counts.keySet()) {
+            HashMap<String, Double> innerMap = counts.get(word1);
+            double unigramCount = 0;
+            for (String word2 : innerMap.keySet()) {
+                double count = innerMap.get(word2);
+                if (!numberOfBigramsWithCount.containsKey(count+1)) {
+                    numberOfBigramsWithCount.put(count+1, 0.0);
+                }
+                // c* = (c+1) * N(c+1) / N(c)
+                double newCount = (count + 1)*(numberOfBigramsWithCount.get(count+1.0))/(numberOfBigramsWithCount.get(count));
+                innerMap.put(word2, newCount);
+                unigramCount += newCount;
+            }
+            unigramCounts.put(word1, unigramCount);
+        }
+        goodTuringCountsAvailable = true;
     }
     
     public void showCounts()
@@ -135,10 +233,10 @@ public class Bigram
             String previousWord = START;
             while (matcher.find()) {
                 String match = matcher.group();
-                if (unsmoothedProbability(previousWord, match) > 0) {
-                    products.push(unsmoothedProbability(previousWord, match));
-                    wordCount++;
-                }
+                
+                products.push(goodTuringSmoothedProbability(previousWord, match));
+                wordCount++;
+                
                 // Update previousWord
                 previousWord = match;
             }
