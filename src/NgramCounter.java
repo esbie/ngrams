@@ -112,7 +112,7 @@ public class NgramCounter
             gtcount = 0;
             for (NgramCounter ngc : map.values()) {
                 ngc.makeGoodTuringCounts();
-                gtcount += ngc.count;
+                gtcount += ngc.gtcount;
             }
             return;
         }
