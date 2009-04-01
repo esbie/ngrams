@@ -6,10 +6,13 @@ public class NgramCounter
     public int level; // level into the tree (root = highest numbered level)
     public HashMap<String, NgramCounter> map; // links to child nodes, each link is the next word
     public double count; // leaf node's count for an n-gram
+    public double gtcount; // leaf nodes' good-turing count for an n-gram
+    public HashMap<Double, Double> numberOfNgramsWithCount;
     
-    public NgramCounter(int level)
+    public NgramCounter(int level, HashMap<Double, Double> numberOfNgramsWithCount)
     {
         this.level = level;
+        this.numberOfNgramsWithCount = numberOfNgramsWithCount;
         if (level == 0) {
             // There are no links to child nodes, we are a leaf node
             this.map = null;
@@ -21,36 +24,32 @@ public class NgramCounter
         }
     }
     
-    public void insert(String remaining)
+    public double insert(String[] ngram)
     {
+        // Keep track of level 1 counts
+        if (level == 1) {
+            count++;
+        }
+        
         // Recursive base case - If this is a leaf, increment the count
         if (level == 0) {
             count++;
-            return;
+            return count;
         }
         
         // Recursive step - Find/create the next node to travel to and recurse
-        
-        // limit=2 means we will get [0]=nextword, [1]=rest
-        String[] word_and_rest = remaining.split("\t", 2);
-        
         NgramCounter next;
-        if (map.containsKey(word_and_rest[0])) {
-            next = map.get(word_and_rest[0]);
+        if (map.containsKey(ngram[ngram.length-level])) {
+            next = map.get(ngram[ngram.length-level]);
         } else {
-            next = new NgramCounter(level-1);
-            map.put(word_and_rest[0], next);
+            next = new NgramCounter(level-1, numberOfNgramsWithCount);
+            map.put(ngram[ngram.length-level], next);
         }
         
-        // These are really the same case, but check to avoid null pointer
-        if (word_and_rest.length == 1) {
-            next.insert(null);
-        } else {
-            next.insert(word_and_rest[1]);
-        }
+        return next.insert(ngram);
     }
     
-    public double count(String remaining)
+    public double count(String[] ngram)
     {
         // Recursive base case - If this is a leaf, return the count
         if (level == 0) {
@@ -58,47 +57,31 @@ public class NgramCounter
         }
         
         // Recursive step - Find the next node to travel to and recurse
-        
-        // limit=2 means we will get [0]=nextword, [1]=rest
-        String[] word_and_rest = remaining.split("\t", 2);
-        
-        if (!map.containsKey(word_and_rest[0])) {
+        if (!map.containsKey(ngram[ngram.length-level])) {
             return 0.0; // we never saw this n-gram, so the count is 0.
         }
-        
-        // These are really the same case, but check to avoid null pointer
-        if (word_and_rest.length == 1) {
-            return map.get(word_and_rest[0]).count(null);
-        }
-        return map.get(word_and_rest[0]).count(word_and_rest[1]);
+        return map.get(ngram[ngram.length-level]).count(ngram);
     }
     
-    public double level1Count(String remaining)
+    public double level1Count(String[] ngram)
     {
         // Recursive base case - One level above leaf nodes, sum all counts of leaf nodes
         if (level == 1) {
-            double sum = 0.0;
-            for (NgramCounter ngc : map.values()) {
-                sum += ngc.count(null);
-            }
-            return sum;
+            return count;
         }
         
         // Recursive step - Find the next node to travel to and recurse
-        
-        // limit=2 means we will get [0]=nextword, [1]=rest
-        String[] word_and_rest = remaining.split("\t", 2);
-        if (!map.containsKey(word_and_rest[0])) {
+        if (!map.containsKey(ngram[ngram.length-level])) {
             return 0; // we never saw this n-gram
         }
-        return map.get(word_and_rest[0]).level1Count(word_and_rest[1]);
+        return map.get(ngram[ngram.length-level]).level1Count(ngram);
     }
     
-    public String generateNextWord(String remaining)
+    public String generateNextWord(String[] ngram)
     {
         // Recursive base case - One level above leaf nodes, find a random next word based on counts
         if (level == 1) {
-            double totalCountForLevel = level1Count(null);
+            double totalCountForLevel = level1Count(ngram);
             
             // Generate a random distance into the counts to take a word from
             double rand = Math.random() * totalCountForLevel;
@@ -108,16 +91,65 @@ public class NgramCounter
             String nextWord = "";
             while (i.hasNext() && rand >= 0) {
                 nextWord = i.next();
-                rand -= map.get(nextWord).count(null);
+                rand -= map.get(nextWord).count(ngram);
             }
             
             return nextWord;
         }
         
         // Recursive step - Find the next node to travel to and recurse
+        return map.get(ngram[ngram.length-level]).generateNextWord(ngram);
+    }
+    
+    public void makeGoodTuringCounts()
+    {
+        if (level == 1) {
+            gtcount = 0;
+            for (NgramCounter ngc : map.values()) {
+                ngc.makeGoodTuringCounts();
+                gtcount += ngc.count;
+            }
+            return;
+        }
         
-        // limit=2 means we will get [0]=nextword, [1]=rest
-        String[] word_and_rest = remaining.split("\t", 2);
-        return map.get(word_and_rest[0]).generateNextWord(word_and_rest[1]);
+        if (level == 0) {
+            if (!numberOfNgramsWithCount.containsKey(count+1)) {
+                numberOfNgramsWithCount.put(count+1, 0.0);
+            }
+            gtcount = (count+1)*(numberOfNgramsWithCount.get(count+1.0))/(numberOfNgramsWithCount.get(count));
+            return;
+        }
+        
+        for (NgramCounter ngc : map.values()) {
+            ngc.makeGoodTuringCounts();
+        }
+    }
+    
+    public double gtcount(String[] ngram)
+    {
+        // Recursive base case - If this is a leaf, return the count
+        if (level == 0) {
+            return gtcount;
+        }
+        
+        // Recursive step - Find the next node to travel to and recurse
+        if (!map.containsKey(ngram[ngram.length-level])) {
+            return 0.0; // we never saw this n-gram, just return 0
+        }
+        return map.get(ngram[ngram.length-level]).gtcount(ngram);
+    }
+    
+    public double level1GTCount(String[] ngram)
+    {
+        // Recursive base case - One level above leaf nodes, sum all counts of leaf nodes
+        if (level == 1) {
+            return gtcount;
+        }
+        
+        // Recursive step - Find the next node to travel to and recurse
+        if (!map.containsKey(ngram[ngram.length-level])) {
+            return 0.0; // we never saw this n-gram, just return 0
+        }
+        return map.get(ngram[ngram.length-level]).level1GTCount(ngram);
     }
 }
